@@ -231,16 +231,6 @@ public class TextWireTest extends WireTestCommon {
         // Verify that TEXT WireType doesn't require any license check.
         WireType.TEXT.licenceCheck();
         assertTrue(WireType.TEXT.isAvailable());
-
-        // Check that DELTA_BINARY WireType requires a license and throws an exception if not present.
-        try {
-            expectException("A Chronicle-Wire-Enterprise licence is required to run this code because you are using DELTA_BINARY which is a licence product");
-            WireType.DELTA_BINARY.licenceCheck();
-            fail();
-        } catch (IllegalStateException expected) {
-            // exception is expected
-        }
-        assertFalse(WireType.DELTA_BINARY.isAvailable());
     }
 
     // Test to ensure that objects with TreeMap fields are correctly serialized and deserialized.
@@ -1236,7 +1226,6 @@ public class TextWireTest extends WireTestCommon {
     }
 
     // Test reading and writing of a string map with Wire.
-    @SuppressWarnings("deprecation")
     @Test
     public void testMapReadAndWriteStrings() {
         // Initialize bytes and wire for writing
@@ -1387,7 +1376,6 @@ public class TextWireTest extends WireTestCommon {
     }
 
     // Test reading and writing a map with integer keys and values to/from a Wire.
-    @SuppressWarnings("deprecation")
     @Test
     public void testMapReadAndWriteIntegers() {
         // Create a byte store and wire to work with
@@ -1451,7 +1439,6 @@ public class TextWireTest extends WireTestCommon {
     }
 
     // Test reading and writing a map with Marshallable keys and values to/from a Wire.
-    @SuppressWarnings("deprecation")
     @Test
     public void testMapReadAndWriteMarshable() {
         // Create a byte store and wire to work with

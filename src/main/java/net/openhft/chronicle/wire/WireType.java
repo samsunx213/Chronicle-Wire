@@ -51,8 +51,7 @@ import static net.openhft.chronicle.core.io.IOTools.*;
  * Enumerates a selection of prebuilt wire types. These wire types define specific ways
  * data can be serialized and deserialized.
  * <p>
- * This enumeration provides utilities to check for the availability of certain wire types
- * such as DeltaWire and DefaultZeroWire. It also provides methods to acquire bytes,
+ * It also provides methods to acquire bytes,
  * useful in serialization operations.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
@@ -104,13 +103,13 @@ public enum WireType implements Function<Bytes<?>, Wire>, LicenceCheck {
         }
     },
     /**
-     * Use this ONLY if intend to use Delta and Binary. Otherwise, use {@link #BINARY_LIGHT}
+     * With the removal of DeltaWire, this is the same as BINARY_LIGHT
      */
     BINARY {
         @NotNull
         @Override
         public Wire apply(@NotNull Bytes<?> bytes) {
-            return new BinaryWire(bytes);
+            return BinaryWire.binaryOnly(bytes);
         }
 
         @NotNull
@@ -147,112 +146,11 @@ public enum WireType implements Function<Bytes<?>, Wire>, LicenceCheck {
             return fromHexString(cs);
         }
     },
-    @Deprecated(/* to be removed in x.27 */)
-    DEFAULT_ZERO_BINARY {
-        @NotNull
-        @Override
-        public Wire apply(Bytes<?> bytes) {
-
-            try {
-                return (Wire) Class.forName("software.chronicle.wire.DefaultZeroWire")
-                        .getDeclaredConstructor(Bytes.class)
-                        .newInstance(bytes);
-
-            } catch (Exception e) {
-                @NotNull IllegalStateException licence = new IllegalStateException(
-                        "A Chronicle Wire Enterprise licence is required to run this code " +
-                                "because you are using DefaultZeroWire which is a licence product. " +
-                                "Please contact sales@chronicle.software");
-                Jvm.warn().on(getClass(), licence);
-                throw licence;
-            }
-        }
-
-        @Override
-        public void licenceCheck() {
-            if (isAvailable())
-                return;
-
-            @NotNull final IllegalStateException licence = new IllegalStateException("A Chronicle Wire " +
-                    "Enterprise licence is required to run this code because you are using " +
-                    "DEFAULT_ZERO_BINARY which is a licence product. " +
-                    "Please contact sales@chronicle.software");
-            Jvm.warn().on(getClass(), licence);
-            throw licence;
-        }
-
-        @Override
-        public boolean isAvailable() {
-            return IS_DEFAULT_ZERO_AVAILABLE;
-        }
-
-        @NotNull
-        @Override
-        public String asString(Object marshallable) {
-            return asHexString(marshallable);
-        }
-
-        @Nullable
-        @Override
-        public <T> T fromString(@NotNull CharSequence cs) throws InvalidMarshallableException {
-            return fromHexString(cs);
-        }
-    },
-    @Deprecated(/* to be removed in x.27 */)
-    DELTA_BINARY {
-        @NotNull
-        @Override
-        public Wire apply(Bytes<?> bytes) {
-
-            try {
-                @NotNull
-                Class<Wire> aClass = (Class) Class.forName("software.chronicle.wire.DeltaWire");
-                final Constructor<Wire> declaredConstructor = aClass.getDeclaredConstructor(Bytes.class);
-                return declaredConstructor.newInstance(bytes);
-
-            } catch (Exception e) {
-                licenceCheck();
-
-                // this should never happen
-                throw new AssertionError(e);
-            }
-        }
-
-        @Override
-        public void licenceCheck() {
-            if (isAvailable())
-                return;
-
-            @NotNull final IllegalStateException licence = new IllegalStateException("A Chronicle-Wire-" +
-                    "Enterprise licence is required to run this code because you are using " +
-                    "DELTA_BINARY which is a licence product. " +
-                    "Please contact sales@chronicle.software");
-            Jvm.error().on(WireType.class, licence);
-            throw licence;
-        }
-
-        @Override
-        public boolean isAvailable() {
-            return IS_DELTA_AVAILABLE;
-        }
-
-        @NotNull
-        @Override
-        public String asString(Object marshallable) {
-            return asHexString(marshallable);
-        }
-
-        @Nullable
-        @Override
-        public <T> T fromString(@NotNull CharSequence cs) throws InvalidMarshallableException {
-            return fromHexString(cs);
-        }
-    },
     FIELDLESS_BINARY {
         @NotNull
         @Override
         public Wire apply(@NotNull Bytes<?> bytes) {
-            return new BinaryWire(bytes, false, false, true, Integer.MAX_VALUE, "binary", false);
+            return new BinaryWire(bytes, false, false, true, Integer.MAX_VALUE, "binary");
         }
 
         @NotNull
@@ -271,7 +169,7 @@ public enum WireType implements Function<Bytes<?>, Wire>, LicenceCheck {
         @NotNull
         @Override
         public Wire apply(@NotNull Bytes<?> bytes) {
-            return new BinaryWire(bytes, false, false, false, COMPRESSED_SIZE, "lzw", true);
+            return new BinaryWire(bytes, false, false, false, COMPRESSED_SIZE, "lzw");
         }
 
         @NotNull
@@ -384,40 +282,6 @@ public enum WireType implements Function<Bytes<?>, Wire>, LicenceCheck {
     // Size after which data is compressed.
     private static final int COMPRESSED_SIZE = Integer.getInteger("WireType.compressedSize", 128);
 
-    // Flags to check the availability of certain wire types.
-    private static final boolean IS_DELTA_AVAILABLE = isDeltaAvailable();
-    private static final boolean IS_DEFAULT_ZERO_AVAILABLE = isDefaultZeroAvailable();
-
-    /**
-     * Checks if the DeltaWire type is available in the current environment.
-     *
-     * @return true if DeltaWire is available, false otherwise.
-     */
-    @Deprecated(/* to be removed in x.27 */)
-    private static boolean isDeltaAvailable() {
-        try {
-            Class.forName("software.chronicle.wire.DeltaWire").getDeclaredConstructor(Bytes.class);
-            return true;
-        } catch (Exception fallback) {
-            return false;
-        }
-    }
-
-    /**
-     * Checks if the DefaultZeroWire type is available in the current environment.
-     *
-     * @return true if DefaultZeroWire is available, false otherwise.
-     */
-    @Deprecated(/* to be removed in x.27 */)
-    private static boolean isDefaultZeroAvailable() {
-        try {
-            Class.forName("software.chronicle.wire.DefaultZeroWire").getDeclaredConstructor(Bytes.class);
-            return true;
-        } catch (Exception var4) {
-            return false;
-        }
-    }
-
     /**
      * Determines the  of a given {@link Wire} instance. This method inspects
      * the underlying type of the provided wire instance and maps it to its corresponding
@@ -444,15 +308,6 @@ public enum WireType implements Function<Bytes<?>, Wire>, LicenceCheck {
 
         if (wire instanceof TextWire)
             return WireType.TEXT;
-
-        if ("DeltaWire".equals(wire.getClass().getSimpleName())) {
-            return DELTA_BINARY;
-        }
-
-        // this must be above BinaryWire
-        if ("DefaultZeroWire".equals(wire.getClass().getSimpleName())) {
-            return DEFAULT_ZERO_BINARY;
-        }
 
         if (wire instanceof BinaryWire) {
             @NotNull BinaryWire binaryWire = (BinaryWire) wire;
@@ -698,37 +553,6 @@ public enum WireType implements Function<Bytes<?>, Wire>, LicenceCheck {
                         return false;
                     }
                 }, false);
-    }
-
-    @Deprecated(/* for removal in x.27*/)
-    public <T extends Marshallable> void toFileAsMap(@NotNull String filename, @NotNull Map<String, T> map)
-            throws IOException, InvalidMarshallableException {
-        toFileAsMap(filename, map, false);
-    }
-
-    @Deprecated(/* for removal in x.27*/)
-    public <T extends Marshallable> void toFileAsMap(@NotNull String filename, @NotNull Map<String, T> map, boolean compact)
-            throws IOException, InvalidMarshallableException {
-        String tempFilename = IOTools.tempName(filename);
-        try (ScopedResource<Bytes<Void>> stlBytes = Wires.acquireBytesScoped()) {
-            Bytes<?> bytes = stlBytes.get();
-            Wire wire = apply(bytes);
-            for (@NotNull Map.Entry<String, T> entry : map.entrySet()) {
-                @NotNull ValueOut valueOut = wire.writeEventName(entry::getKey);
-                boolean wasLeaf = valueOut.swapLeaf(compact);
-                valueOut.marshallable(entry.getValue());
-                valueOut.swapLeaf(wasLeaf);
-            }
-            IOTools.writeFile(tempFilename, bytes.toByteArray());
-        }
-        @NotNull File file2 = new File(tempFilename);
-        @NotNull File dest = new File(filename);
-        if (!file2.renameTo(dest)) {
-            if (dest.delete() && file2.renameTo(dest))
-                return;
-            file2.delete();
-            throw new IOException("Failed to rename " + tempFilename + " to " + filename);
-        }
     }
 
     /**
